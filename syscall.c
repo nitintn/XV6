@@ -98,6 +98,9 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+extern int sys_start_burst(void);
+extern int sys_end_burst(void);
+extern int sys_print_bursts(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -121,11 +124,21 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_start_burst] sys_start_burst,
+[SYS_end_burst] sys_end_burst,
+[SYS_print_bursts] sys_print_bursts,
 };
 
 void
 syscall(void)
 {
+  int ticks = sys_end_burst() - proc->initial_burst; 		// To store CPU ticks before a new syscall
+  proc->cpu_bursts[proc->index] = ticks;					// Storing tikcs in the array
+  proc->index ++;
+  
+  if(proc->index>=75){										// checking if the array is full
+	proc->index =0;  										// if array is full then index is reinitializied to zero
+  }
   int num;
 
   num = proc->tf->eax;
@@ -136,4 +149,5 @@ syscall(void)
             proc->pid, proc->name, num);
     proc->tf->eax = -1;
   }
+  proc->initial_burst = sys_start_burst();					//To store CPU ticks after the syscall
 }

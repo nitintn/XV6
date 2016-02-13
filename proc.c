@@ -7,6 +7,7 @@
 #include "proc.h"
 #include "spinlock.h"
 
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -69,7 +70,11 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
-
+  
+  int sys_start_burst(void);
+  p->index=0;										// initializing index
+  p->initial_burst = sys_start_burst();  			
+  
   return p;
 }
 

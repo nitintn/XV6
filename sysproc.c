@@ -5,7 +5,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
-
+#define null 0x00
 int
 sys_fork(void)
 {
@@ -87,4 +87,36 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+/*The fucntions sys_start_burst and sys_end_burst 
+	are called after and before the syscall to get 
+	the CPU Ticks*/
+int
+sys_start_burst(void)
+{
+  int start = sys_uptime();
+  return start;
+}
+
+int
+sys_end_burst(void)
+{
+  int end = sys_uptime();
+  return end;
+}
+
+/* It keeps the track of the proceses
+	running in the CPU*/
+int
+sys_print_bursts(void)
+{
+  int i =0;
+  for( i=0; i<75;i++){
+	  if(proc->cpu_bursts[i]!=null){
+		  cprintf ("%d, ", proc->cpu_bursts[i]);
+	  }
+	  
+  }
+	  cprintf("\n");
+	  return 0;
 }
