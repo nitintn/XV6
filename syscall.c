@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "x86.h"
 #include "syscall.h"
+#define null 0x00
 
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
@@ -133,9 +134,11 @@ void
 syscall(void)
 {
   int ticks = sys_end_burst() - proc->initial_burst; 		// To store CPU ticks before a new syscall
-  proc->cpu_bursts[proc->index] = ticks;					// Storing tikcs in the array
-  proc->index ++;
-  
+  if(ticks!=0){
+  	proc->cpu_bursts[proc->index] = ticks;					// Storing tikcs in the array
+	proc->index ++;
+  }
+    
   if(proc->index>=75){										// checking if the array is full
 	proc->index =0;  										// if array is full then index is reinitializied to zero
   }
@@ -150,4 +153,5 @@ syscall(void)
     proc->tf->eax = -1;
   }
   proc->initial_burst = sys_start_burst();					//To store CPU ticks after the syscall
+  
 }

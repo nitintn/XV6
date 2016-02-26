@@ -103,6 +103,7 @@ sys_end_burst(void)
 {
   int end = sys_uptime();
   return end;
+
 }
 
 /* It keeps the track of the proceses
@@ -110,13 +111,14 @@ sys_end_burst(void)
 int
 sys_print_bursts(void)
 {
-  int i =0;
+  int i;
   for( i=0; i<75;i++){
 	  if(proc->cpu_bursts[i]!=null){
-		  cprintf ("%d, ", proc->cpu_bursts[i]);
-	  }
-	  
-  }
+		  cprintf ("%d,", proc->cpu_bursts[i]);
+		}
+  }	
+	  cprintf ("Time:%d", sys_end_burst() - proc->ticktocktick);
 	  cprintf("\n");
 	  return 0;
 }
+

@@ -6,7 +6,8 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-
+#define INT_MAX 32767
+#define null 0x00
 
 struct {
   struct spinlock lock;
@@ -73,8 +74,10 @@ found:
   
   int sys_start_burst(void);
   p->index=0;										// initializing index
-  p->initial_burst = sys_start_burst();  			
+  p->initial_burst = sys_start_burst(); 
   
+  int sys_uptime(void);
+  p->ticktocktick = sys_uptime();
   return p;
 }
 
@@ -135,7 +138,7 @@ fork(void)
 {
   int i, pid;
   struct proc *np;
-
+  
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
@@ -162,6 +165,10 @@ fork(void)
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
+  
+  //int sys_uptime(void);
+  //np->ticktocktick = sys_uptime();
+  
   return pid;
 }
 
@@ -251,6 +258,19 @@ wait(void)
   }
 }
 
+int 
+checkburst(struct proc *p)
+{
+	//cprintf("%d",p->index);
+		if(p->index<3 && p->cpu_bursts[3]!=null){
+			return 1;
+		}
+		else{
+			return 0;
+		}
+	
+
+}
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -263,32 +283,88 @@ void
 scheduler(void)
 {
   struct proc *p;
-
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
+	
+	
+	
+		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+		{
+				
+			if(p->state != RUNNABLE)
+				continue;
+			
+			  // Switch to chosen process.  It is the process's job
+			  // to release ptable.lock and then reacquire it
+			  // before jumping back to us.
+			if(checkburst(p))
+			{	  
+				proc = p;
+				switchuvm(p);
+				p->state = RUNNING;
+				swtch(&cpu->scheduler, proc->context);
+				switchkvm();
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-      swtch(&cpu->scheduler, proc->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      proc = 0;
-    }
+				  // Process is done running for now.
+				  // It should have changed its p->state before coming back.
+				proc = 0;
+			}//cprintf("%d",1);
+			else
+			{
+				struct proc *minp;
+				int min_average = INT_MAX;
+				int loop_counter = 3;
+				int count;
+				int sum = 0;
+				int avg;
+				//cprintf("Count: %d", );
+				
+				for(count = p->index; loop_counter>0; count--, loop_counter--)
+				{
+					//cprintf("Count: %d",count);
+					if(count == - 1)
+					{
+						count = 75;
+						//loop_counter++;
+						//cprintf("In if");
+					}
+					sum = p->cpu_bursts[count];
+						//cprintf("Brust is: %d \n", sum);
+					
+				}	//cprintf("%d",2); //inner for ends
+				
+				avg = sum/3;
+				//cprintf("avg:%d",avg);
+					
+				if(avg<min_average)
+				{
+					min_average = avg;
+					minp = p;				
+				}
+				// Switch to chosen process.  It is the process's job
+				// to release ptable.lock and then reacquire it
+				// before jumping back to us.
+				if(minp->state==RUNNABLE)
+				{
+					proc = minp;
+					switchuvm(minp);
+					minp->state = RUNNING;
+					swtch(&cpu->scheduler, proc->context);
+					switchkvm();
+				}
+					
+				// Process is done running for now.
+				// It should have changed its p->state before coming back.
+				proc = 0;
+				
+			}//else ends
+		}
     release(&ptable.lock);
-
+	
   }
 }
 
@@ -460,5 +536,7 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+
 
 

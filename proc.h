@@ -68,7 +68,9 @@ struct proc {
   char name[16];               // Process name (debugging)
   int cpu_bursts[75];		   // Array to store bursts
   int index;				   // To store Index values of array
-  int initial_burst;			   // Store first CPU burst
+  int initial_burst;		   // Store first CPU burst
+  int ticktocktick;			   // store the first burst when a process start
+
 };
 
 // Process memory is laid out contiguously, low addresses first:
