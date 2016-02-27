@@ -113,11 +113,11 @@ sys_print_bursts(void)
 {
   int i;
   for( i=0; i<75;i++){
-	  if(proc->cpu_bursts[i]!=null){
-		  cprintf ("%d,", proc->cpu_bursts[i]);
+	  if(proc->cpu_bursts[i]!=null){					
+		  cprintf ("%d,", proc->cpu_bursts[i]);					// printing the CPU bursts
 		}
   }	
-	  cprintf ("Time:%d", sys_end_burst() - proc->ticktocktick);
+	  cprintf ("Turnaround Time:%d", sys_end_burst() - proc->ticktocktick); // calculating turnaround time
 	  cprintf("\n");
 	  return 0;
 }

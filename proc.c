@@ -74,10 +74,11 @@ found:
   
   int sys_start_burst(void);
   p->index=0;										// initializing index
-  p->initial_burst = sys_start_burst(); 
+  p->initial_burst = sys_start_burst(); 		
+  memset(p->cpu_bursts,0,sizeof(int)*75);
   
-  int sys_uptime(void);
-  p->ticktocktick = sys_uptime();
+  int sys_uptime(void);								// store time when the process starts
+  p->ticktocktick = sys_uptime();					// for calculating turnaround time
   return p;
 }
 
@@ -261,15 +262,12 @@ wait(void)
 int 
 checkburst(struct proc *p)
 {
-	//cprintf("%d",p->index);
-		if(p->index<3 && p->cpu_bursts[3]!=null){
-			return 1;
+		if(p->index<3 && p->cpu_bursts[3]==null){ // checking for the number of index of the burst
+			return 1;							  // for round robin if index is less than 3
 		}
 		else{
-			return 0;
+			return 0;							  // else SRTF
 		}
-	
-
 }
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
@@ -283,14 +281,14 @@ void
 scheduler(void)
 {
   struct proc *p;
+  int j;
   for(;;){
     // Enable interrupts on this processor.
     sti();
-
+	int min_average = INT_MAX; 		//initializing a mininum average value to INT_MAX which has been defined in the header block
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-	
-	
+	j=checkburst(p);				// store the returned value to an integer	
 	
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
 		{
@@ -301,7 +299,7 @@ scheduler(void)
 			  // Switch to chosen process.  It is the process's job
 			  // to release ptable.lock and then reacquire it
 			  // before jumping back to us.
-			if(checkburst(p))
+			if(j==1) 			// if loop for Round Robin Scheduling
 			{	  
 				proc = p;
 				switchuvm(p);
@@ -312,44 +310,36 @@ scheduler(void)
 				  // Process is done running for now.
 				  // It should have changed its p->state before coming back.
 				proc = 0;
-			}//cprintf("%d",1);
-			else
+			}
+			else				    // else block for SRTF Scheduling
 			{
-				struct proc *minp;
-				int min_average = INT_MAX;
-				int loop_counter = 3;
-				int count;
+				struct proc *minp; 
+				int counter = 3;
+				int position;
 				int sum = 0;
 				int avg;
-				//cprintf("Count: %d", );
 				
-				for(count = p->index; loop_counter>0; count--, loop_counter--)
+				for(position = p->index; counter>=0; position--, counter--) // adding last three burst values in this for loop
 				{
-					//cprintf("Count: %d",count);
-					if(count == - 1)
-					{
-						count = 75;
-						//loop_counter++;
-						//cprintf("In if");
+					if(position == - 1)										// if the array index go below the least
+					{														// take the last, making it circular	
+						position = 75;
 					}
-					sum = p->cpu_bursts[count];
-						//cprintf("Brust is: %d \n", sum);
+					sum = p->cpu_bursts[position];
 					
-				}	//cprintf("%d",2); //inner for ends
+				}
 				
-				avg = sum/3;
-				//cprintf("avg:%d",avg);
-					
-				if(avg<min_average)
-				{
-					min_average = avg;
-					minp = p;				
+				avg = sum/3;		
+				if(avg<min_average)											// checking of the average is less than the minimum set value
+				{															
+					min_average = avg;										// store the value to minimum
+					minp = p;												// storing the process
 				}
 				// Switch to chosen process.  It is the process's job
 				// to release ptable.lock and then reacquire it
 				// before jumping back to us.
-				if(minp->state==RUNNABLE)
-				{
+				if(minp->state==RUNNABLE)									// scheduling the SRT process
+				{															//SRTF implementation
 					proc = minp;
 					switchuvm(minp);
 					minp->state = RUNNING;
@@ -362,7 +352,7 @@ scheduler(void)
 				proc = 0;
 				
 			}//else ends
-		}
+		}//outer for ends
     release(&ptable.lock);
 	
   }
