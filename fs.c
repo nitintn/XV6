@@ -356,30 +356,73 @@ iunlockput(struct inode *ip)
 static uint
 bmap(struct inode *ip, uint bn)
 {
-  uint addr, *a;
-  struct buf *bp;
-
-  if(bn < NDIRECT){
-    if((addr = ip->addrs[bn]) == 0)
+  uint addr, *a, *single_a;
+  struct buf *bp, *single_bp;
+  uint Indirect_ptr, Indirect_ptr_double, block_number;
+ //to check whether direct block access is required
+  if(bn < NDIRECT)
+  {
+    if((addr = ip->addrs[bn]) == 0)//
       ip->addrs[bn] = addr = balloc(ip->dev);
     return addr;
   }
   bn -= NDIRECT;
 
-  if(bn < NINDIRECT){
-    // Load indirect block, allocating if necessary.
-    if((addr = ip->addrs[NDIRECT]) == 0)
-      ip->addrs[NDIRECT] = addr = balloc(ip->dev);
-    bp = bread(ip->dev, addr);
+  //Single Indirect pointers
+  //to check whether single indirect block access is required
+  if(bn < INDIRECT_SINGLE*NINDIRECT)
+  {
+    //Pointer to single indirect block
+	Indirect_ptr = NDIRECT + (bn/NINDIRECT);
+	block_number = bn%NINDIRECT;//Block number in single indirect block
+	
+	// Load indirect block, allocating if necessary.
+    if((addr = ip->addrs[Indirect_ptr]) == 0)
+      ip->addrs[Indirect_ptr] = addr = balloc(ip->dev);
+    
+	bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
-    if((addr = a[bn]) == 0){
-      a[bn] = addr = balloc(ip->dev);
+    
+	if((addr = a[block_number]) == 0)
+	{
+      a[block_number] = addr = balloc(ip->dev);
       log_write(bp);
     }
     brelse(bp);
     return addr;
   }
+  bn -= NINDIRECT*INDIRECT_SINGLE;
+  
+  //Double Indirect pointers 
+  //to check whether double indirect block access is required 
+  if(bn < INDIRECT_DOUBLE*NINDIRECT*NINDIRECT)
+	{
+		Indirect_ptr_double=(NDIRECT+ INDIRECT_SINGLE + INDIRECT_DOUBLE);	//Pointer to double indirect block
+	
+		//Accessing actual double indirect block in dinode(-1 because index starts from zero)
+		if((addr = ip->addrs[Indirect_ptr_double - 1]) == 0)
+		  ip->addrs[Indirect_ptr_double - 1] = addr = balloc(ip->dev);
+		
+		bp = bread(ip->dev, addr);
+		a = (uint*)bp->data;
+		
+		if((addr = a[(bn)/NINDIRECT]) == 0) // Accessing now the single indirect block
+			a[(bn)/NINDIRECT] = addr = balloc(ip->dev);
 
+		single_bp = bread(ip->dev, addr);
+		single_a = (uint*)single_bp->data;
+		
+		if((addr = single_a[(bn) % NINDIRECT]) == 0){ //Accessing the actual block data
+		  single_a[bn % NINDIRECT] = addr = balloc(ip->dev);
+		  log_write(bp);
+		  log_write(single_bp);
+		}
+		brelse(bp);
+		brelse(single_bp);
+
+		return addr;
+   }
+ 
   panic("bmap: out of range");
 }
 

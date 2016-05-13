@@ -1,6 +1,7 @@
 #include "types.h"
 #include "defs.h"
 #include "param.h"
+#include "param.h"
 #include "memlayout.h"
 #include "mmu.h"
 #include "x86.h"
@@ -79,6 +80,7 @@ found:
   
   int sys_uptime(void);								// store time when the process starts
   p->ticktocktick = sys_uptime();					// for calculating turnaround time
+  //p->t_thread = 0;
   return p;
 }
 
@@ -163,6 +165,7 @@ fork(void)
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
  
+  np->t_thread = 0;
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
@@ -186,8 +189,10 @@ exit(void)
     panic("init exiting");
 
   // Close all open files.
-  for(fd = 0; fd < NOFILE; fd++){
-    if(proc->ofile[fd]){
+  for(fd = 0; fd < NOFILE; fd++)
+  {
+    if(proc->ofile[fd])
+	{
       fileclose(proc->ofile[fd]);
       proc->ofile[fd] = 0;
     }
@@ -201,15 +206,17 @@ exit(void)
   // Parent might be sleeping in wait().
   wakeup1(proc->parent);
 
+  
   // Pass abandoned children to init.
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->parent == proc){
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if(p->parent == proc)
+	{
       p->parent = initproc;
       if(p->state == ZOMBIE)
         wakeup1(initproc);
     }
   }
-
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
   sched();
@@ -235,9 +242,13 @@ wait(void)
       if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
-        kfree(p->kstack);
+	  if(p->t_thread ==0){
+	    kfree(p->kstack);
+	    freevm(p->pgdir);
+	  }
+        //kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+        //freevm(p->pgdir);
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
@@ -357,6 +368,7 @@ scheduler(void)
 	
   }
 }
+
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state.
@@ -526,6 +538,142 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+//thread creation
+int thread_create(void(*tmain)(void *),void *stack,void *arg)
+{
+  struct proc *np;
+  int pid, i;
+  uint stack_size = 1024;				//assuming stack size to be 1024
+  uint sp = (uint)stack + stack_size;   //stack pointer
+  uint* user_stack =(uint *)stack;		//user stack
+
+  //allocating process to ptable
+  if((np = allocproc())==0)
+    return -1;
+  
+  //copy process state from p
+  np->pgdir = proc->pgdir; // Parent and child has same pagetable
+  np->sz = proc->sz;
+  np->parent = proc;
+  *np->tf = *proc->tf; // same trapframe
+  
+  np->parent->t_thread++;
+ 
+  //copying context
+  np->tf->esp = sp;
+  np->tf->ebp = (uint)user_stack + 4;
+  np->tf->eip = (uint)(tmain);
+  
+  np->tf->eax = 0;
+  
+  for(i=0; i<NOFILE; i++)
+    if(proc->ofile[i])
+      np->ofile[i]= proc->ofile[i];
+  np->cwd = idup(proc->cwd);
+  
+  pid = np->pid;
+  np->state = RUNNABLE;
+  safestrcpy(np->name,proc->name,sizeof(proc->name));
+  
+  return pid;
+}
+
+int thread_join(void **stack)
+{
+  struct proc *p;
+  int havekids,pid;
+
+  acquire(&ptable.lock);
+  for(;;)
+  {
+    //Scan through tablle looking for zombie children
+    havekids = 0;
+    for(p = ptable.proc ; p <&ptable.proc[NPROC]; p++)
+    {
+      //check if proc p is a child and a thread
+      if(p->parent != proc && p->t_thread)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE)
+      {
+        //found one
+        pid = p->pid;
+		/*kfree(p->kstack);
+        p->kstack = 0;
+	 	proc->t_thread--;
+        if (proc <= 0){
+		  freevm(p->pgdir);
+		}*/
+        p->kstack = 0;
+        p->state = UNUSED;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+		proc->t_thread--;
+        
+		release(&ptable.lock);
+		return pid;
+      }
+    }
+
+    //No point waiting if we dont have any children
+    if(!havekids || proc->killed)
+    {
+      release(&ptable.lock);
+      return -1;
+    }
+    //Wait for children to exit
+    sleep(proc, &ptable.lock);
+  }
+  //return 0;
+}
+      
+//MUTEX
+struct spinlock mutex_list[50];
+int mutex_index =0;
+
+int mtx_create(int locked)
+{
+  if(mutex_index < 50)
+  {
+    initlock(&mutex_list[mutex_index], "mutex");
+    if(locked)
+    {
+      mtx_lock(mutex_index);
+    }
+    return(mutex_index++);
+  }
+  return -1;
+}
+
+int mtx_lock(int lock_id)
+{
+	if(lock_id > 0 || lock_id < mutex_index)
+	{
+		lock_acquire(&mutex_list[lock_id]);
+	}
+	else
+	{
+		return -1;
+	}
+return 0;
+}
+
+int mtx_unlock(int lock_id)
+{
+	if(lock_id  > 0 || lock_id < 50)
+	{
+		lock_release (&mutex_list[lock_id]);
+	}
+	else
+	{
+		return -1;
+	}
+return 0;
+}
+
 
 
 

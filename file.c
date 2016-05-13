@@ -122,7 +122,8 @@ filewrite(struct file *f, char *addr, int n)
     return -1;
   if(f->type == FD_PIPE)
     return pipewrite(f->pipe, addr, n);
-  if(f->type == FD_INODE){
+  if(f->type == FD_INODE)
+  {
     // write a few blocks at a time to avoid exceeding
     // the maximum log transaction size, including
     // i-node, indirect block, allocation blocks,
@@ -131,7 +132,8 @@ filewrite(struct file *f, char *addr, int n)
     // might be writing a device like the console.
     int max = ((LOGSIZE-1-1-2) / 2) * 512;
     int i = 0;
-    while(i < n){
+    while(i < n)
+	{
       int n1 = n - i;
       if(n1 > max)
         n1 = max;

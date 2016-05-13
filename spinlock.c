@@ -9,6 +9,7 @@
 #include "proc.h"
 #include "spinlock.h"
 
+
 void
 initlock(struct spinlock *lk, char *name)
 {
@@ -61,6 +62,31 @@ release(struct spinlock *lk)
   xchg(&lk->locked, 0);
 
   popcli();
+}
+//lock acquire implemented for mutex_lock
+//similar to acquire
+void lock_acquire(struct spinlock *lk) 
+{	
+	if(holding(lk))
+    panic("acquire");
+
+  while(xchg(&lk->locked, 1) != 0)
+    ;
+
+  lk->cpu = cpu;
+  getcallerpcs(&lk, lk->pcs);
+}
+//lock release implemented for mutex_unlock
+//similar to release()
+void lock_release(struct spinlock *lk)
+{
+	if(!holding(lk))
+    panic("release");
+
+  lk->pcs[0] = 0;
+  lk->cpu = 0;
+
+  xchg(&lk->locked, 0);
 }
 
 // Record the current call stack in pcs[] by following the %ebp chain.

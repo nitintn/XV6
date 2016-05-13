@@ -70,9 +70,8 @@ struct proc {
   int index;				   // To store Index values of array
   int initial_burst;		   // Store first CPU burst
   int ticktocktick;			   // store the first burst when a process start
-
+  int t_thread;
 };
-
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss

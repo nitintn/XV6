@@ -6,6 +6,9 @@
 #include "mmu.h"
 #include "proc.h"
 #define null 0x00
+#define INVALID_ARGS -1
+
+
 int
 sys_fork(void)
 {
@@ -122,3 +125,56 @@ sys_print_bursts(void)
 	  return 0;
 }
 
+//machine problem 2- kernel threading
+
+/*
+	check whether valid thread arguments are passed
+*/
+
+// thread syscall 
+int sys_thread_create(void)
+{
+	char *tmain, *stack, *arg;
+	
+	if (argptr(0,&tmain,1) < 0 || argptr(1, &stack,0) < 0 || argptr(2,&arg,0) < 0)
+		return INVALID_ARGS;
+	return thread_create((void*)tmain,(void*)stack, (void*)arg);
+
+}
+
+int sys_thread_join(void)
+{
+	char* stack;
+	
+	if(argptr(0,&stack,1) < 0)
+		return INVALID_ARGS;
+	return thread_join((void**)stack);
+}
+
+//mutex syscall
+int sys_mtx_create(void)
+{
+	int locked;
+	
+	if(argint(0,&locked) < 0)
+		return INVALID_ARGS;
+	return mtx_create(locked);
+}
+
+int sys_mtx_lock(void)
+{
+	int lock_id;
+	
+	if(argint(0,&lock_id) < 0)
+		return INVALID_ARGS;
+	return mtx_lock(lock_id);
+}
+
+int sys_mtx_unlock(void)
+{
+	int lock_id;
+	
+	if(argint(0,&lock_id) < 0)
+		return INVALID_ARGS;
+	return mtx_unlock(lock_id);
+}

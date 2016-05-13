@@ -1,0 +1,15 @@
+I am expeccting left-handed > footman > tanenbaum, though the timing for left-handed and footman is almost same. According to me, tanenbaum soltuion gives maximum concurrency as we check the neighbours whether they are hungry. In footman solution, there is a server which checks who is hungry hence is concurrency is high, but it is less than that tanenbaum. Left-handed has least concurrency compared to the three, 
+I checked for multiple inputs 
+
+Number of philosopher dining : 2
+Number of meals each philosopher will eat : 5
+1.Footman solution, time elapsed 1.4681833916007252
+2.LeftRight solution, time elapsed 1.4698796304849022
+3.Tanenbaums solution, time elapsed 0.7357991309808045
+
+Number of philosopher dining : 5
+Number of meals each philosopher will eat : 10
+1.Footman solution, time elapsed 7.3391913288417525
+2.LeftRight solution, time elapsed 7.338506022207853
+3.Tanenbaums solution, time elapsed 1.4710435787841405
+

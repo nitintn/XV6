@@ -126,6 +126,8 @@ void            getcallerpcs(void*, uint*);
 int             holding(struct spinlock*);
 void            initlock(struct spinlock*, char*);
 void            release(struct spinlock*);
+void            lock_acquire(struct spinlock*);
+void            lock_release(struct spinlock*);
 void            pushcli(void);
 void            popcli(void);
 
@@ -145,6 +147,13 @@ int             argstr(int, char**);
 int             fetchint(uint, int*);
 int             fetchstr(uint, char**);
 void            syscall(void);
+
+//sysproc.c
+int             thread_create(void (*tmain)(void *), void *stack, void *arg);
+int             thread_join(void **stack);
+int             mtx_create(int locked);
+int             mtx_lock(int lock_id);
+int             mtx_unlock(int lock_id);
 
 // timer.c
 void            timerinit(void);

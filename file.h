@@ -7,7 +7,14 @@ struct file {
   struct inode *ip;
   uint off;
 };
+#define BSIZE 512  // block size
+#define NDIRECT 10
+#define INDIRECT_SINGLE 2
+#define INDIRECT_DOUBLE 1
 
+#define NINDIRECT (BSIZE / sizeof(uint))	//No. of pointers
+ 
+#define MAXFILE (NDIRECT + INDIRECT_SINGLE*NINDIRECT + (INDIRECT_DOUBLE*NINDIRECT*NINDIRECT))
 
 // in-memory copy of an inode
 struct inode {
@@ -21,7 +28,8 @@ struct inode {
   short minor;
   short nlink;
   uint size;
-  uint addrs[NDIRECT+1];
+  //uint addrs[NDIRECT+1];
+  uint addrs[NDIRECT+INDIRECT_SINGLE+INDIRECT_DOUBLE];
 };
 #define I_BUSY 0x1
 #define I_VALID 0x2
